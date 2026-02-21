@@ -1,0 +1,23 @@
+name: tdlib_one
+description: A sample command-line application.
+version: 1.0.0
+publish_to: none
+# repository: https://github.com/my_org/my_repo
+
+environment:
+  sdk: ^3.11.0
+
+# Add regular dependencies here.
+dependencies:
+  dart_telegram_bot: ^1.0.0
+  ffi: ^2.2.0
+  path: ^1.9.1
+  tdlibjson:
+    path: ../tdlibjson
+  tdjsonapi:
+    path: ../tdjsonapi
+  http: ^0.13.6
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.25.6
