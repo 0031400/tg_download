@@ -14,6 +14,10 @@ void main(List<String> arguments) async {
   final apiHash = Platform.environment['ApiHash']!;
   final groupName = Platform.environment['GroupName']!;
   final tdlibPath = Platform.environment['TdlibPath']!;
+  final newOldFileMap = <String, String>{};
+  final deleteAfterUpload = bool.parse(
+    Platform.environment['DeleteAfterUpload']!,
+  );
   tdlibapi.TdJson.init(tdlibPath: tdlibPath);
   int clientId = tdlibapi.TdJson.tdCreateClientId!();
   final client = tdlibapi.Client(clientId: clientId);
@@ -76,6 +80,11 @@ void main(List<String> arguments) async {
         if (f.existsSync()) {
           f.deleteSync();
         }
+      }
+      if (deleteAfterUpload && newOldFileMap.containsKey(basename(p))) {
+        try {
+          File(newOldFileMap[basename(p)]!).deleteSync();
+        } catch (_) {}
       }
     }
   });
@@ -182,6 +191,7 @@ void main(List<String> arguments) async {
             res['content']['audio']['audio'],
           );
         }
+        newOldFileMap[baseName] = file.local.path;
         fileMap[uploadedFile.id] = (update.message!.chat.id, msg.messageId);
       }
       if (downloadLock[file.id] ?? false) {
