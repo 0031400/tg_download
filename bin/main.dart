@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 import 'package:tdjsonapi/tdjsonapi.dart' as tdlibapi;
 import 'package:tdlibjson/tdlibjson.dart' as tdlibjson;
@@ -23,6 +22,8 @@ void main(List<String> arguments) async {
     'new_verbosity_level': 1,
   });
   final fileMap = <int, (int, int)>{};
+  final uploadLock = <int, bool>{};
+  final downloadLock = <int, bool>{};
   client.start(tdlibPath: tdlibPath);
   await tdlibInitAuth(client, apiId, apiHash);
   final res = await client.send({
@@ -40,7 +41,12 @@ void main(List<String> arguments) async {
       if (fileMap.containsKey(fileId)) {
         if (file.remote.isUploadingCompleted) {
           fileMap.remove(fileId);
+          uploadLock.remove(fileId);
         } else {
+          if (uploadLock[fileId] ?? false) {
+            return;
+          }
+          uploadLock[fileId] = true;
           try {
             await bot.editMessageText(
               "上传进度 ${(file.remote.uploadedSize / file.size * 100).toStringAsFixed(2)}%",
@@ -48,10 +54,10 @@ void main(List<String> arguments) async {
               fileMap[fileId]!.$2,
             );
           } catch (_) {}
+          uploadLock[fileId] = false;
         }
       }
-    }
-    if ((data['@type'] as String) == 'updateMessageSendSucceeded') {
+    } else if ((data['@type'] as String) == 'updateMessageSendSucceeded') {
       final message = tdlibjson.Message.fromJson(
         data['message'] as Map<String, dynamic>,
       );
@@ -178,6 +184,10 @@ void main(List<String> arguments) async {
         }
         fileMap[uploadedFile.id] = (update.message!.chat.id, msg.messageId);
       }
+      if (downloadLock[file.id] ?? false) {
+        return;
+      }
+      downloadLock[file.id] = true;
       final downloadedSize = file.local.downloadedSize;
       final totalSize = file.size;
       final progress = downloadedSize / totalSize * 100;
@@ -189,6 +199,7 @@ void main(List<String> arguments) async {
           msg.messageId,
         );
       } catch (_) {}
+      downloadLock[file.id] = false;
     });
   });
   bot.start();
