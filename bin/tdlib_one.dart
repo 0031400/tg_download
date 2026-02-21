@@ -12,14 +12,15 @@ void main(List<String> arguments) async {
   final apiId = int.parse(Platform.environment['ApiId']!);
   final apiHash = Platform.environment['ApiHash']!;
   final groupName = Platform.environment['GroupName']!;
-  tdlibapi.TdJson.init(tdlibPath: "tdjson.dll");
+  final tdlibPath = Platform.environment['TdlibPath']!;
+  tdlibapi.TdJson.init(tdlibPath: tdlibPath);
   int clientId = tdlibapi.TdJson.tdCreateClientId!();
   final client = tdlibapi.Client(clientId: clientId);
   tdlibapi.TdJson.send(clientId, {
     '@type': 'setLogVerbosityLevel',
     'new_verbosity_level': 1,
   });
-  client.start(tdlibPath: "tdjson.dll");
+  client.start(tdlibPath: tdlibPath);
   await tdlibInitAuth(client, apiId, apiHash);
   final res = await client.send({
     '@type': 'searchPublicChat',
@@ -36,7 +37,10 @@ void main(List<String> arguments) async {
         final content = message.content as tdlibjson.MessageAudio;
         final p = content.audio.audio.local.path;
         if (p.isNotEmpty) {
-          File(p).deleteSync();
+          final f = File(p);
+          if (f.existsSync()) {
+            f.deleteSync();
+          }
         }
       }
     }
