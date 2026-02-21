@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'package:tdjsonapi/tdjsonapi.dart' as tdlibapi;
 import 'package:tdlibjson/tdlibjson.dart' as tdlibjson;
+import 'package:dart_telegram_bot/telegram_entities.dart' as tg_bot_entities;
 import 'package:dart_telegram_bot/dart_telegram_bot.dart' as tg_bot;
 import 'package:path/path.dart';
 import 'tdlib_init_auth.dart';
@@ -100,15 +102,20 @@ void main(List<String> arguments) async {
     } else {
       return;
     }
+    final msg = await bot.sendMessage(
+      tg_bot_entities.ChatID(update.message!.chat.id),
+      "下载进度 0.00%",
+    );
     await client.send({
       '@type': 'downloadFile',
       'file_id': fileId,
       'priority': 1,
     });
     Timer.periodic(Duration(milliseconds: 500), (Timer timer) async {
-      final file = tdlibjson.File.fromJson(
-        await client.send({'@type': 'getFile', 'file_id': fileId}),
-      );
+      final res = await client.send({'@type': 'getFile', 'file_id': fileId});
+      print(jsonEncode(res));
+      print("");
+      final file = tdlibjson.File.fromJson(res);
       if (file.local.isDownloadingCompleted) {
         timer.cancel();
         final tempDir = Directory("temp");
@@ -145,6 +152,17 @@ void main(List<String> arguments) async {
           });
         }
       }
+      final downloadedSize = file.local.downloadedSize;
+      final totalSize = file.size;
+      final progress = downloadedSize / totalSize * 100;
+      final newText = "下载进度 ${progress.toStringAsFixed(2)}%";
+      try {
+        await bot.editMessageText(
+          newText,
+          tg_bot_entities.ChatID(update.message!.chat.id),
+          msg.messageId,
+        );
+      } catch (e) {}
     });
   });
   bot.start();
