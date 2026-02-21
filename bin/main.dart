@@ -22,6 +22,7 @@ void main(List<String> arguments) async {
     '@type': 'setLogVerbosityLevel',
     'new_verbosity_level': 1,
   });
+  final fileMap = <int, (int, int)>{};
   client.start(tdlibPath: tdlibPath);
   await tdlibInitAuth(client, apiId, apiHash);
   final res = await client.send({
@@ -30,7 +31,26 @@ void main(List<String> arguments) async {
   });
   final chatId = tdlibjson.Chat.fromJson(res).id;
   final bot = tg_bot.Bot(token: botToken);
-  client.updates.listen((data) {
+  client.updates.listen((data) async {
+    if ((data['@type'] as String) == 'updateFile') {
+      final file = tdlibjson.File.fromJson(
+        data['file'] as Map<String, dynamic>,
+      );
+      final fileId = file.id;
+      if (fileMap.containsKey(fileId)) {
+        if (file.remote.isUploadingCompleted) {
+          fileMap.remove(fileId);
+        } else {
+          try {
+            await bot.editMessageText(
+              "上传进度 ${(file.remote.uploadedSize / file.size * 100).toStringAsFixed(2)}%",
+              tg_bot_entities.ChatID(fileMap[fileId]!.$1),
+              fileMap[fileId]!.$2,
+            );
+          } catch (_) {}
+        }
+      }
+    }
     if ((data['@type'] as String) == 'updateMessageSendSucceeded') {
       final message = tdlibjson.Message.fromJson(
         data['message'] as Map<String, dynamic>,
@@ -113,8 +133,6 @@ void main(List<String> arguments) async {
     });
     Timer.periodic(Duration(milliseconds: 500), (Timer timer) async {
       final res = await client.send({'@type': 'getFile', 'file_id': fileId});
-      print(jsonEncode(res));
-      print("");
       final file = tdlibjson.File.fromJson(res);
       if (file.local.isDownloadingCompleted) {
         timer.cancel();
@@ -123,8 +141,9 @@ void main(List<String> arguments) async {
         final baseName = basename(file.local.path);
         final targetPath = join(tempDir.path, baseName);
         File(file.local.path).copySync(targetPath);
+        tdlibjson.File? uploadedFile;
         if (isVideo) {
-          await client.send({
+          final res = await client.send({
             '@type': 'sendMessage',
             'chat_id': chatId,
             'input_message_content': {
@@ -136,8 +155,11 @@ void main(List<String> arguments) async {
               },
             },
           });
+          uploadedFile = tdlibjson.File.fromJson(
+            res['content']['video']['video'],
+          );
         } else {
-          await client.send({
+          final res = await client.send({
             '@type': 'sendMessage',
             'chat_id': chatId,
             'input_message_content': {
@@ -150,7 +172,11 @@ void main(List<String> arguments) async {
               },
             },
           });
+          uploadedFile = tdlibjson.File.fromJson(
+            res['content']['audio']['audio'],
+          );
         }
+        fileMap[uploadedFile.id] = (update.message!.chat.id, msg.messageId);
       }
       final downloadedSize = file.local.downloadedSize;
       final totalSize = file.size;
@@ -162,7 +188,7 @@ void main(List<String> arguments) async {
           tg_bot_entities.ChatID(update.message!.chat.id),
           msg.messageId,
         );
-      } catch (e) {}
+      } catch (_) {}
     });
   });
   bot.start();
