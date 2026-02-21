@@ -4,7 +4,7 @@
 用户发送类似 https://t.me/FLAC_HR/9144 的链接到 bot  
 tdlib 解析链接，得到 file ，下载到本地  
 tdlib 把本地的文件发送到一个群组
-bot 在群组里面，使用 fileId 转发文件到用户
+bot 在群组里面，使用 fileId 转发文件到用户  
 删除本地的文件
 # 部署
 需要 tdlib 和 bot ，一个群组， bot 是群组的管理员之一， bot 关闭隐私模式。
