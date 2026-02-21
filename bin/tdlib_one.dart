@@ -11,7 +11,7 @@ void main(List<String> arguments) async {
   final botToken = Platform.environment['BotToken']!;
   final apiId = int.parse(Platform.environment['ApiId']!);
   final apiHash = Platform.environment['ApiHash']!;
-  final chatId = int.parse(Platform.environment['ChatId']!);
+  final groupName = Platform.environment['GroupName']!;
   tdlibapi.TdJson.init(tdlibPath: "tdjson.dll");
   int clientId = tdlibapi.TdJson.tdCreateClientId!();
   final client = tdlibapi.Client(clientId: clientId);
@@ -20,7 +20,12 @@ void main(List<String> arguments) async {
     'new_verbosity_level': 1,
   });
   client.start(tdlibPath: "tdjson.dll");
-  tdlibInitAuth(client, apiId, apiHash);
+  await tdlibInitAuth(client, apiId, apiHash);
+  final res = await client.send({
+    '@type': 'searchPublicChat',
+    'username': groupName,
+  });
+  final chatId = tdlibjson.Chat.fromJson(res).id;
   final bot = tg_bot.Bot(token: botToken);
   client.updates.listen((data) {
     if ((data['@type'] as String) == 'updateMessageSendSucceeded') {

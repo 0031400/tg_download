@@ -1,10 +1,11 @@
-import 'dart:convert';
-
-import 'package:tdlibjson/tdlibjson.dart' as tdlibjson;
 import 'package:tdjsonapi/tdjsonapi.dart' as tdlibapi;
 import 'dart:io';
 
-void tdlibInitAuth(tdlibapi.Client client, int apiId, String apiHash) async {
+Future<void> tdlibInitAuth(
+  tdlibapi.Client client,
+  int apiId,
+  String apiHash,
+) async {
   while (true) {
     final authState = await client.send({'@type': 'getAuthorizationState'});
     final authorizationState = authState['@type'] as String;
