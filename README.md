@@ -13,4 +13,5 @@ BotToken="8288******:AAFj******-qa************-gCE******"
 ApiId="295*****"  
 ApiHash="85874ba0e4c6********************"  
 GroupName="***_test_group"  
-TdlibPath="libtdjson.so"
+TdlibPath="libtdjson.so"  
+DeleteAfterUpload="true" 是否删除上传过的文件
