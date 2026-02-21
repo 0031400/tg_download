@@ -33,14 +33,20 @@ void main(List<String> arguments) async {
       final message = tdlibjson.Message.fromJson(
         data['message'] as Map<String, dynamic>,
       );
+      String p = '';
       if (message.content is tdlibjson.MessageAudio) {
         final content = message.content as tdlibjson.MessageAudio;
-        final p = content.audio.audio.local.path;
-        if (p.isNotEmpty) {
-          final f = File(p);
-          if (f.existsSync()) {
-            f.deleteSync();
-          }
+        p = content.audio.audio.local.path;
+      } else if (message.content is tdlibjson.MessageVideo) {
+        final content = message.content as tdlibjson.MessageVideo;
+        p = content.video.video.local.path;
+      } else {
+        return;
+      }
+      if (p.isNotEmpty) {
+        final f = File(p);
+        if (f.existsSync()) {
+          f.deleteSync();
         }
       }
     }
@@ -50,6 +56,14 @@ void main(List<String> arguments) async {
       await get(
         Uri.parse(
           "https://api.telegram.org/bot$botToken/sendAudio?chat_id=${update.message!.caption!}&audio=${update.message!.audio!.fileId}",
+        ),
+      );
+      return;
+    }
+    if (update.message?.video != null) {
+      await get(
+        Uri.parse(
+          "https://api.telegram.org/bot$botToken/sendVideo?chat_id=${update.message!.caption!}&video=${update.message!.video!.fileId}",
         ),
       );
       return;
@@ -72,10 +86,20 @@ void main(List<String> arguments) async {
       await client.send({'@type': 'getMessageLinkInfo', 'url': url}),
     );
     final content = messageLinkInfo.message.content;
-    if (content is! tdlibjson.MessageAudio) {
+    if ((content is! tdlibjson.MessageAudio) &&
+        (content is! tdlibjson.MessageVideo)) {
       return;
     }
-    final fileId = content.audio.audio.id;
+    int fileId;
+    bool isVideo = false;
+    if (content is tdlibjson.MessageAudio) {
+      fileId = content.audio.audio.id;
+    } else if (content is tdlibjson.MessageVideo) {
+      fileId = content.video.video.id;
+      isVideo = true;
+    } else {
+      return;
+    }
     await client.send({
       '@type': 'downloadFile',
       'file_id': fileId,
@@ -92,19 +116,34 @@ void main(List<String> arguments) async {
         final baseName = basename(file.local.path);
         final targetPath = join(tempDir.path, baseName);
         File(file.local.path).copySync(targetPath);
-        await client.send({
-          '@type': 'sendMessage',
-          'chat_id': chatId,
-          'input_message_content': {
-            '@type': 'inputMessageAudio',
-            'audio': {'@type': 'inputFileLocal', 'path': targetPath},
-            'title': baseName,
-            'caption': {
-              '@type': 'formattedText',
-              'text': update.message!.chat.id.toString(),
+        if (isVideo) {
+          await client.send({
+            '@type': 'sendMessage',
+            'chat_id': chatId,
+            'input_message_content': {
+              '@type': 'inputMessageVideo',
+              'video': {'@type': 'inputFileLocal', 'path': targetPath},
+              'caption': {
+                '@type': 'formattedText',
+                'text': update.message!.chat.id.toString(),
+              },
             },
-          },
-        });
+          });
+        } else {
+          await client.send({
+            '@type': 'sendMessage',
+            'chat_id': chatId,
+            'input_message_content': {
+              '@type': 'inputMessageAudio',
+              'audio': {'@type': 'inputFileLocal', 'path': targetPath},
+              'title': baseName,
+              'caption': {
+                '@type': 'formattedText',
+                'text': update.message!.chat.id.toString(),
+              },
+            },
+          });
+        }
       }
     });
   });
